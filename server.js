@@ -11,7 +11,7 @@ const verifyAppToken = (req, res, next) => {
     const xAppToken = req.headers['x-app-token'];
     if (!xAppToken || !ALLOWED_APP_TOKENS.includes(xAppToken)) {
         return res.status(403).json({
-            error: "Security Error: Unauthorized Access! Invalid or Missing App Token."
+            error: "Security Error: Unauthorized Access!"
         });
     }
     next();
@@ -35,14 +35,16 @@ app.post('/v1/gateway', verifyAppToken, async (req, res) => {
             },
             body: JSON.stringify({
                 model: "llama-3.1-8b-instant",
-                messages: [{ role: "user", content: prompt }]
+                messages: [
+                    { role: "user", content: prompt }
+                ]
             })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error?.message || "Groq API failed");
+            throw new Error(data.error?.message || "Groq API error");
         }
 
         const botReply = data.choices[0].message.content;
