@@ -17,7 +17,6 @@ const verifyAppToken = (req, res, next) => {
     next();
 };
 
-// Yeh raha main endpoint jo chat se connect hoga
 app.post('/v1/gateway', verifyAppToken, async (req, res) => {
     const { prompt } = req.body;
     
@@ -25,7 +24,7 @@ app.post('/v1/gateway', verifyAppToken, async (req, res) => {
         return res.status(400).json({ error: "Prompt is required" });
     }
 
-    const GROQ_API_KEY = "gsk_hOwOgr4aOzbv5dTdgdtlW6dyb3FY7QzxtkPe64XkkMWxVIdf40t";
+    const GROQ_API_KEY = "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";
 
     try {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
