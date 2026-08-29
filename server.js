@@ -1,24 +1,14 @@
-// ==========================================
-// SECTION 0: SETUP & DEPENDENCIES
-// ==========================================
 const express = require('express');
-const app = express();
 const cors = require('cors');
-app.use(cors());
+const app = express();
 
 app.use(express.json());
+app.use(cors());
 
-const PORT = process.env.PORT || 3000;
-
-
-// ==========================================
-// SECTION 1: SECURITY & TOKEN SENSOR
-// ==========================================
 const ALLOWED_APP_TOKENS = ["mayabir_secret_token_123"];
 
 const verifyAppToken = (req, res, next) => {
     const xAppToken = req.headers['x-app-token'];
-    
     if (!xAppToken || !ALLOWED_APP_TOKENS.includes(xAppToken)) {
         return res.status(403).json({
             error: "Security Error: Unauthorized Access! Invalid or Missing App Token."
@@ -27,15 +17,16 @@ const verifyAppToken = (req, res, next) => {
     next();
 };
 
+// Yeh raha main endpoint jo chat se connect hoga
+app.post('/v1/gateway', verifyAppToken, async (req, res) => {
+    const { prompt } = req.body;
+    
+    if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required" });
+    }
 
-// ==========================================
-// SECTION 2: TEXT AI ENGINE (MULTI-API REAL FALLBACK)
-// ==========================================
-async function handleTextGeneration(prompt) {
-    const GROQ_API_KEY = "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";
-    const GEMINI_API_KEY = "AQ.Ab8RN6ITvCF2Bx4xuN-RDCOSsEMldYrayo3lhd-zsIUNFJMXXQ";
+    const GROQ_API_KEY = "gsk_hOwOgr4aOzbv5dTdgdtlW6dyb3FY7QzxtkPe64XkkMWxVIdf40t";
 
-    // --- STEP 1: Try Primary API (Groq - Llama 3) ---
     try {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
@@ -50,96 +41,26 @@ async function handleTextGeneration(prompt) {
         });
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.error?.message || "Groq API failed");
         }
 
-        return data.choices[0].message.content;
-        
-    } catch (groqError) {
-        console.log(`Groq failed: ${groqError.message}. Switching to real Gemini API...`);
-        
-        // --- STEP 2: Fallback to Secondary Real API (Gemini 1.5 Flash) ---
-        try {
-            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }]
-                })
-            });
+        const botReply = data.choices[0].message.content;
+        res.json({
+            status: "success",
+            output: botReply
+        });
 
-            const geminiData = await geminiResponse.json();
-            
-            if (!geminiResponse.ok) {
-                throw new Error(geminiData.error?.message || "Gemini API failed");
-            }
-
-            return geminiData.candidates[0].content.parts[0].text;
-            
-        } catch (geminiError) {
-            throw new Error(`Dono Asli Text APIs fail ho gayi hain: ${geminiError.message}`);
-        }
-    }
-}
-
-
-// ==========================================
-// SECTION 3: REAL IMAGE GENERATION ENGINE
-// ==========================================
-async function handleImageGeneration(prompt) {
-    try {
-        // Real Image generation link jo direct UI/Frontend mein <img src="..." /> ke andar lag kar image dikha dega
-        const encodedPrompt = encodeURIComponent(prompt);
-        const realImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-        
-        return {
-            image_url: realImageUrl,
-            status: "Real image successfully generated for direct display!"
-        };
-    } catch (imgError) {
-        throw new Error(`Image generation failed: ${imgError.message}`);
-    }
-}
-
-
-// ==========================================
-// SECTION 4: MASTER ROUTING ENDPOINT
-// ==========================================
-app.post("/v1/gateway", verifyAppToken, async (req, res) => {
-    const { prompt, task_type } = req.body;
-
-    if (!prompt || !task_type) {
-        return res.status(400).json({ error: "Prompt and task_type are required in request body." });
-    }
-
-    try {
-        if (task_type === "text") {
-            const result = await handleTextGeneration(prompt);
-            return res.json({ status: "success", type: "text", output: result });
-        } 
-        else if (task_type === "image") {
-            const result = await handleImageGeneration(prompt);
-            return res.json({ status: "success", type: "image", output: result });
-        } 
-        else {
-            return res.status(400).json({ error: "Invalid task_type. Use 'text' or 'image'." });
-        }
     } catch (error) {
-        return res.status(500).json({ status: "error", message: error.message });
+        res.status(500).json({
+            status: "error",
+            message: error.message
+        });
     }
 });
 
-
-// ==========================================
-// SECTION 5: SYSTEM HEALTH CHECK
-// ==========================================
-app.get("/", (req, res) => {
-    res.json({ status: "Mayabir Master Node.js Gateway is live with Real Groq, Gemini Fallback, and Image Engine!" });
-});
-
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Gateway server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
-  
